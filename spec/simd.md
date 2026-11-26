@@ -395,7 +395,7 @@ def example(a_ub, b_ub):
 
 签名：`tla.simd.vcadd(src, mask=None, mode=tla.simd.MODE.ZEROING)`
 
-返回：与 src 同 dtype、同 lane 数的向量；第 0 个元素为求和结果，其余位置由 mode 决定。
+返回：与 src 同 dtype、同 lane 数的向量；第 0 个元素为求和结果，其余位置填 0。
 
 编译表示：ave.hir.reduction。
 
@@ -403,9 +403,9 @@ def example(a_ub, b_ub):
 | --- | --- | --- | --- | --- | --- |
 | `src` | 待求和的数据 | tla.vector | 数据类型：<br>B32：int32 / float32<br>lane 数：64 | 本节仅确认 int32 / float32；其他类型的支持范围待确认。 | 必填 |
 | `mask` | 选择参与计算的元素 | tla.vector / None | 数据类型：<br>B1：int1<br>元素个数：64 | None 表示全部启用。 | None |
-| `mode` | 未写入位置的处理方式 | 编译期 tla.simd.MODE 枚举 | MODE.ZEROING / MODE.MERGING | ZEROING：未写入位置填 0；MERGING：保留目标向量对应位置的原值，目标须已初始化。第 0 个元素始终写入归约结果。 | MODE.ZEROING |
+| `mode` | 未写入位置的处理方式 | 编译期 tla.simd.MODE 枚举 | MODE.ZEROING | 仅支持 ZEROING：未写入位置填 0。MERGING 传入会报错。 | MODE.ZEROING |
 
-对 mask 为真的所有源元素求和，结果放在第 0 个 lane。其余位置在 ZEROING 模式下填 0，在 MERGING 模式下保留已初始化目标对应位置的原值。返回类型不扩宽；浮点结果遵循目标归约顺序，不保证与逐元素顺序累加逐位一致。
+对 mask 为真的所有源元素求和，结果放在第 0 个 lane，其余位置填 0。返回类型不扩宽；浮点结果遵循目标归约顺序，不保证与逐元素顺序累加逐位一致。
 
 Ascend960 / A6 的设备支持范围待确认。
 
@@ -1541,35 +1541,37 @@ def example(a_ub):
 
 ## tla.simd.vscatter
 
-签名：`tla.simd.vscatter(dst, indices, src, mask)`
+签名：`tla.simd.vscatter(src, dst, index, mask=None)`
 
-返回：None。
+返回：None，数据写入 `dst` 指向的 UB。
 
 编译表示：ave.hir.vscatter。
 
 | 参数名 | 参数含义 | 参数类型 | 合法参数范围 | 其他约束 | 默认值 |
 | --- | --- | --- | --- | --- | --- |
-| `dst` | 目标缓冲区 | tla.buffer | 地址空间：UB<br>数据类型：<br>B8：不支持<br>B16：不支持<br>B32：uint32<br>B64：不支持 | dst 必须为一维连续、零 offset 的 UB buffer。src、indices 固定 64 lanes。活跃索引不得重复或越界。 | 必填 |
-| `indices` | 索引向量 | tla.vector | 数据类型：<br>B32：uint32<br>lane 数：64 | 按元素计，活跃索引不得重复或越界。 | 必填 |
-| `src` | 源数据 | tla.vector | 数据类型：<br>B8：不支持<br>B16：不支持<br>B32：uint32<br>B64：不支持 | dst 必须为一维连续、零 offset 的 UB buffer。src、indices 固定 64 lanes。活跃索引不得重复或越界。 | 必填 |
-| `mask` | 控制各 lane 是否启用的谓词 | tla.vector | 数据类型：<br>B1：int1<br>元素个数：64 | true 时写入对应元素；false 时不写，目标内存保留原值。 | 必填 |
+| `src` | 待写出的数据 | tla.vector | 数据类型：<br>B8：不支持<br>B16：不支持<br>B32：int32 / uint32 / float32<br>B64：不支持 | 必须是 64 lane 满寄存器，元素类型与 `dst` 一致。 | 必填 |
+| `dst` | 目标缓冲区 | tla.buffer / buffer_access | 地址空间：UB<br>数据类型：<br>B32：int32 / uint32 / float32 | 一维连续；`dst[off]` 形式给出起始偏移，偏移须位于缓冲区内。 | 必填 |
+| `index` | 元素索引向量 | tla.vector | 数据类型：<br>B32：uint32<br>lane 数：64 | 单位为元素；活跃 lane 的索引须互异且不越界。 | 必填 |
+| `mask` | 控制各 lane 是否写出的谓词 | tla.vector / None | 数据类型：<br>B1：int1<br>元素个数：64 | None 表示全部写出；false 的 lane 不写，目标内存保留原值。 | None |
 
-活跃元素执行 `dst[indices[i]] = src[i]`；uint32 的字节地址为 `dst 起点 + 4 × indices[i]`。索引互异，写入不做原子合并。
+活跃 lane 执行 `dst[index[i]] = src[i]`，索引单位为元素。活跃索引必须互异且不越界，写入不做原子合并。
 
-后续读写相同 UB 区域时须按流水依赖安排同步；本接口本身不执行屏障。
+后续读取同一块 UB 须按流水依赖安排同步（例如 `tla.simd.membar("VST_VLD")`），本接口本身不执行屏障。
 
 **调用示例**
 
-三者均为 uint32 UB 缓冲区，活跃索引互异且位于 dst_ub 范围内。
+src_ub、index_ub、dst_ub 均为 32 位 UB 缓冲区，活跃索引互异且位于 `dst_ub` 范围内。
 
 ```python
 @tla.jit
-def example(src_ub, indices_ub, dst_ub):
+def example(src_ub, index_ub, dst_ub):
     with tla.scope.simd():
         values = tla.simd.vlds(src_ub[0])
-        indices = tla.simd.vlds(indices_ub[0])
-        tla.simd.vscatter(dst_ub, indices, values, tla.simd.pset(32, dist=tla.simd.PAT.VL32))
+        index = tla.simd.vlds(index_ub[0])
+        tla.simd.vscatter(values, dst_ub[0], index)
 ```
+
+仓库测试：[memory_completion.py](https://github.com/triton-lang/triton-ascend/blob/d89bcb4f2/third_party/ascend/unittest/tla_ut/simd/memory_completion.py#L137)。
 
 <a name="api-tla-simd-vsel"></a>
 
@@ -1606,14 +1608,18 @@ def example(a_ub, b_ub):
 
 ## tla.simd.vselr
 
-签名：`tla.simd.vselr(src, indices)`
+签名：`tla.simd.vselr(src, index)`
 
-返回：tla.vector。
+返回：tla.vector，dtype 与 lane 数与 `src` 相同。
+
+编译表示：ave.hir.vselr。
 
 | 参数名 | 参数含义 | 参数类型 | 合法参数范围 | 其他约束 | 默认值 |
 | --- | --- | --- | --- | --- | --- |
-| `src` | 源数据 | tla.vector | 数据类型：<br>B8：不支持<br>B16：uint16<br>B32：不支持<br>B64：不支持 | 两个输入均为 128 lanes。索引表示源 lane。 | 必填 |
-| `indices` | 索引向量 | tla.vector | 数据类型：<br>B16：uint16<br>lane 数：128<br>正常索引：0 至 127 | 按源向量 lane 编号寻址。 | 必填 |
+| `src` | 按索引取值的源数据 | tla.vector | 数据类型：<br>B8：int8 / uint8 / float8e4m3fn / float8e5m2<br>B16：int16 / uint16 / float16 / bfloat16<br>B32：int32 / uint32 / float32<br>B64：不支持 | 必须为满寄存器：8 位 256 lanes、16 位 128 lanes、32 位 64 lanes。 | 必填 |
+| `index` | 索引向量 | tla.vector | 数据类型：<br>B8：uint8<br>B16：uint16<br>B32：uint32 | 与 `src` 同宽度、同 lane 数的无符号寄存器，元素个数与 `src` 相同；每个索引须在 `[0, 元素个数)` 内，允许重复。 | 必填 |
+
+`result[i] = src[index[i]]`，按索引逐 lane 取值。数据按位搬移，不改变位模式（含 NaN 载荷、±0），不做类型转换；不访问内存。
 
 **调用示例**
 
@@ -1621,12 +1627,14 @@ def example(a_ub, b_ub):
 
 ```python
 @tla.jit
-def example(src_ub, indices_ub):
+def example(src_ub, index_ub):
     with tla.scope.simd():
         values = tla.simd.vlds(src_ub[0])
-        indices = tla.simd.vlds(indices_ub[0])
-        result = tla.simd.vselr(values, indices)
+        index = tla.simd.vlds(index_ub[0])
+        result = tla.simd.vselr(values, index)
 ```
+
+仓库测试：[vselr.py](https://github.com/triton-lang/triton-ascend/blob/d89bcb4f2/third_party/ascend/unittest/tla_ut/simd/vselr.py#L33)。
 
 <a name="api-tla-simd-vshl"></a>
 
@@ -1722,6 +1730,40 @@ def example(a_ub, b_ub):
 ```
 
 仓库测试：[tla_ut/simd/vshift.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/simd/vshift.py#L50)。
+
+<a name="api-tla-simd-vshrs"></a>
+
+## tla.simd.vshrs
+
+签名：`tla.simd.vshrs(src, scalar, mask=None, mode=tla.simd.MODE.ZEROING)`
+
+返回：tla.vector，dtype 与 lane 数与 `src` 相同。
+
+编译表示：ave.hir.vshrs（有符号 dtype 为算术右移，无符号 dtype 为逻辑右移）。
+
+| 参数名 | 参数含义 | 参数类型 | 合法参数范围 | 其他约束 | 默认值 |
+| --- | --- | --- | --- | --- | --- |
+| `src` | 待右移的源数据 | tla.vector | 数据类型：<br>B8：int8 / uint8<br>B16：int16 / uint16<br>B32：int32 / uint32<br>B64：不支持 | 必须为满寄存器：8 位 256 lanes、16 位 128 lanes、32 位 64 lanes。float16 / bfloat16 / fp8 不支持。 | 必填 |
+| `scalar` | 右移位数 | int / 编译期整数 / 同 dtype 标量 tl.tensor | 编译期整数须落在 int16 范围 `[-32768, 32767]` | 编译期整数越界直接报错；运行时标量不做编译期范围检查；bool 不接受。 | 必填 |
+| `mask` | 控制各 lane 是否参与 | tla.vector / None | 数据类型：<br>B1：int1<br>元素个数：与 `src` 相同 | None 表示全部启用；未选中的 lane 结果为 0。 | None |
+| `mode` | 未写入位置的处理方式 | 编译期 tla.simd.MODE 枚举 | MODE.ZEROING / MODE.MERGING | ZEROING：未写入位置填 0；MERGING 当前与 ZEROING 行为相同，不保留目标向量对应位置的原值。 | MODE.ZEROING |
+
+每个 lane 计算 `src >> scalar`。有符号 dtype 做算术右移（保留符号位），无符号 dtype 做逻辑右移（高位补 0）；未选中的 lane 结果为 0。
+
+**调用示例**
+
+输入为 64 个 int32 元素的连续 UB 缓冲区，右移 3 位。
+
+```python
+@tla.jit
+def example(a_ub, out_ub):
+    with tla.scope.simd():
+        a = tla.simd.vlds(a_ub[0])
+        shifted = tla.simd.vshrs(a, 3)
+        tla.simd.vsts(out_ub[0], shifted, dist=tla.simd.STORE_DIST.NORM_B32)
+```
+
+仓库测试：[vshrs.py](https://github.com/triton-lang/triton-ascend/blob/d89bcb4f2/third_party/ascend/unittest/tla_ut/simd/vshrs.py#L33)。
 
 <a name="api-tla-simd-vsqrt"></a>
 
@@ -2347,17 +2389,17 @@ def example(a_ub, b_ub):
 
 签名：`tla.simd.vcpadd(src, mask=None, mode=tla.simd.MODE.ZEROING)`
 
-返回：tla.vector，lane 数与 `src` 相同。
+返回：tla.vector，dtype 与 lane 数与 `src` 相同。
 
 编译表示：ave.hir.vcpadd。
 
 | 参数名 | 参数含义 | 参数类型 | 合法参数范围 | 其他约束 | 默认值 |
 | --- | --- | --- | --- | --- | --- |
-| `src` | 源数据 | tla.vector | 数据类型：<br>B16：float16<br>B32：float32 | 必须为满寄存器：float16 取 128 lanes，float32 取 64 lanes。 | 必填 |
-| `mask` | 控制各源 lane 是否参与相加 | tla.vector / None | 数据类型：<br>B1：int1<br>元素个数：与 `src` 一致 | None 生成全真 mask；未选中的输入 lane 按 0 参与。 | None |
-| `mode` | 未写入位置的处理方式 | 编译期 tla.simd.MODE 枚举 | MODE.ZEROING / MODE.MERGING | ZEROING：未写入位置填 0；MERGING：保留目标向量对应位置的原值，目标须已初始化。相加结果写入前半部分，mode 控制后半部分。 | MODE.ZEROING |
+| `src` | 待配对求和的数据 | tla.vector | 数据类型：<br>B16：float16<br>B32：float32 | 必须为满寄存器：float16 取 128 lanes，float32 取 64 lanes。 | 必填 |
+| `mask` | 控制各源元素是否参与相加 | tla.vector / None | 数据类型：<br>B1：int1<br>元素个数：与 `src` 相同 | None 表示全部启用；未选中的输入元素按 0 参与。 | None |
+| `mode` | 未写入位置的处理方式 | 编译期 tla.simd.MODE 枚举 | MODE.ZEROING | 仅支持 ZEROING：相加结果写入前半部分，后半部分填 0。MERGING 传入会报错。 | MODE.ZEROING |
 
-每两个相邻输入相加，mask 为 false 的输入按 0 参与；结果依次写入前半部分。后半部分在 ZEROING 模式下填 0，在 MERGING 模式下保留已初始化目标对应位置的原值。
+每两个相邻输入相加，mask 为 false 的输入按 0 参与；结果依次写入前半部分，后半部分填 0。
 
 **调用示例**
 
@@ -2372,25 +2414,25 @@ def example(a_ub, out_ub):
         tla.simd.vsts(out_ub[0], sums, dist=tla.simd.STORE_DIST.NORM_B32)
 ```
 
-仓库测试：[tla_ut/simd/vcpadd.py](https://github.com/triton-lang/triton-ascend/blob/aa927de3356e671160f2b3cf29fe23b6072f2b16/third_party/ascend/unittest/tla_ut/simd/vcpadd.py#L13)。
+仓库测试：[vcpadd.py](https://github.com/triton-lang/triton-ascend/blob/d89bcb4f2/third_party/ascend/unittest/tla_ut/simd/vcpadd.py#L14)。
 
 <a name="api-tla-simd-vsqz"></a>
 
 ## tla.simd.vsqz
 
-签名：`tla.simd.vsqz(src, mask, mode=tla.simd.MODE.ZEROING)`
+签名：`tla.simd.vsqz(src, mask, mode=tla.simd.SQUEEZE_STORE.STORED)`
 
-返回：tla.vector，lane 数与 `src` 相同。
+返回：tla.vector，dtype 与 lane 数与 `src` 相同。
 
-编译表示：ave.hir.vsqz（`squeeze_store` 固定为 `STORED`）。
+编译表示：ave.hir.vsqz（`squeeze_store` 由 `mode` 决定，默认 `STORED`）。
 
 | 参数名 | 参数含义 | 参数类型 | 合法参数范围 | 其他约束 | 默认值 |
 | --- | --- | --- | --- | --- | --- |
 | `src` | 待压缩的源数据 | tla.vector | 数据类型：<br>B8：int8 / uint8<br>B16：int16 / uint16 / float16<br>B32：int32 / uint32 / float32 | 必须为满寄存器：8 位 256 lanes、16 位 128 lanes、32 位 64 lanes。 | 必填 |
-| `mask` | 选择活跃 lane 的谓词 | tla.vector | 数据类型：<br>B1：int1<br>元素个数：与 `src` 相同 | 必填，不接受 None。 | 必填 |
-| `mode` | 未写入位置的处理方式 | 编译期 tla.simd.MODE 枚举 | MODE.ZEROING / MODE.MERGING | ZEROING：未写入位置填 0；MERGING：保留目标向量对应位置的原值，目标须已初始化。mode 只控制压缩结果之后的尾部。 | MODE.ZEROING |
+| `mask` | 选择参与压缩的元素 | tla.vector | 数据类型：<br>B1：int1<br>元素个数：与 `src` 相同 | 必填，不接受 None。 | 必填 |
+| `mode` | 硬件 `squeeze_store` 操作数的选择 | 编译期 tla.simd.SQUEEZE_STORE 枚举 | SQUEEZE_STORE.STORED / SQUEEZE_STORE.NO_STORED | 直接映射 `ave.hir.vsqz` 的 `squeeze_store`；Ascend950 上两种取值返回相同结果。 | SQUEEZE_STORE.STORED |
 
-mask 为 true 的元素按原顺序压到向量前端。尾部在 ZEROING 模式下填 0，在 MERGING 模式下保留已初始化目标对应位置的原值；不再按原 mask 覆盖压缩结果。
+mask 为 true 的元素按原顺序压到向量前端，其余 lane 为 0。
 
 **调用示例**
 
@@ -2404,7 +2446,7 @@ def example(a_ub):
         result = tla.simd.vsqz(a, tla.simd.pset(32, dist=tla.simd.PAT.VL32))
 ```
 
-仓库测试：[tla_ut/simd/vsqz.py](https://github.com/triton-lang/triton-ascend/blob/aa927de3356e671160f2b3cf29fe23b6072f2b16/third_party/ascend/unittest/tla_ut/simd/vsqz.py#L13)。
+仓库测试：[vsqz.py](https://github.com/triton-lang/triton-ascend/blob/d89bcb4f2/third_party/ascend/unittest/tla_ut/simd/vsqz.py#L13)。
 
 <a name="api-tla-simd-vusqz"></a>
 
