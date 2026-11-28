@@ -40,7 +40,7 @@ def example(x, y):
         tla.set_atomic(tla.AtomicKind.NONE, tl.float32)
 ```
 
-仓库测试：[tla_ut/dma/set_atomic.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/dma/set_atomic.py#L35)。
+仓库测试：[tla_ut/dma/set_atomic.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/dma/set_atomic.py#L35)。
 
 <a name="api-tla-load-scalar"></a>
 
@@ -67,7 +67,7 @@ def example(src, index):
         value = tla.load_scalar(tla.view(src, (1,), offsets=(index,)))
 ```
 
-仓库测试：[tla_ut/dma/scalar_load.py](https://github.com/lbqg1234/triton-ascend/blob/f95044e5a3ac1174a0c343ac7c3e5e2fc7d66397/third_party/ascend/unittest/tla_ut/dma/scalar_load.py#L211)。
+仓库测试：[tla_ut/dma/scalar_load.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/dma/scalar_load.py#L211)。
 
 <a name="api-tla-store-scalar"></a>
 
@@ -100,7 +100,7 @@ def example(src, dst, index):
         tla.store_scalar(tla.view(dst, (1,), offsets=(index,)), tla.load_scalar(slot))
 ```
 
-仓库测试：[tla_ut/dma/scalar_load.py](https://github.com/lbqg1234/triton-ascend/blob/f95044e5a3ac1174a0c343ac7c3e5e2fc7d66397/third_party/ascend/unittest/tla_ut/dma/scalar_load.py#L211)。
+仓库测试：[tla_ut/dma/scalar_load.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/dma/scalar_load.py#L211)。
 
 <a name="api-tla-select"></a>
 
@@ -126,7 +126,7 @@ def example(x):
     value = tla.select(x > 0, x, 0)
 ```
 
-仓库测试：[tla_ut/scalar/select.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/scalar/select.py#L35)。
+仓库测试：[tla_ut/scalar/select.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/scalar/select.py#L35)。
 
 <a name="api-tla-abs"></a>
 
@@ -150,7 +150,7 @@ def example(x):
     value = tla.abs(x)
 ```
 
-仓库测试：[tla_ut/scalar/abs.py](https://github.com/triton-lang/triton-ascend/blob/33819a5b6a9bb503e46da2a6e5962f0cd0c44393/third_party/ascend/unittest/tla_ut/scalar/abs.py#L36)。
+仓库测试：[tla_ut/scalar/abs.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/scalar/abs.py#L36)。
 
 <a name="api-xor"></a>
 
@@ -196,7 +196,7 @@ def example(x):
     value = tla.cast(x, tl.int32)
 ```
 
-仓库测试：[tla_ut/scalar/cast.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/scalar/cast.py#L40)。
+仓库测试：[tla_ut/scalar/cast.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/scalar/cast.py#L41)。
 
 <a name="api-tla-cdiv"></a>
 
@@ -219,7 +219,7 @@ def example(x):
     value = tla.cdiv(x, 16)
 ```
 
-仓库测试：[tla_ut/scalar/cdiv.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/scalar/cdiv.py#L42)。
+仓库测试：[tla_ut/scalar/cdiv.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/scalar/cdiv.py#L42)。
 
 <a name="api-tla-clamp"></a>
 
@@ -248,7 +248,7 @@ def example(x: tl.float32):
     value = tla.clamp(x, 0.0, 255.0)
 ```
 
-仓库测试：[tla_ut/scalar/clamp.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/scalar/clamp.py#L46)。
+仓库测试：[tla_ut/scalar/clamp.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/scalar/clamp.py#L44)。
 
 <a name="api-tl-constexpr"></a>
 
@@ -274,7 +274,7 @@ def example(size: tl.constexpr):
     tile = tla.alloc((size,), tl.float32)
 ```
 
-仓库测试：[tla_ut/scope/gm2l1.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/scope/gm2l1.py#L22)。
+仓库测试：[tla_ut/scope/gm2l1.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/scope/gm2l1.py#L22)。
 
 <a name="api-tla-infinity"></a>
 
@@ -296,7 +296,7 @@ def example():
     value = tla.infinity(tl.float32)
 ```
 
-仓库测试：[tla_ut/scalar/infinity.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/scalar/infinity.py#L40)。
+仓库测试：[tla_ut/scalar/infinity.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/scalar/infinity.py#L40)。
 
 <a name="api-tla-maximum"></a>
 
@@ -322,7 +322,7 @@ def example(x, y):
     value = tla.maximum(x, y)
 ```
 
-仓库测试：[tla_ut/scalar/maximum.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/scalar/maximum.py#L43)。
+仓库测试：[tla_ut/scalar/maximum.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/scalar/maximum.py#L43)。
 
 <a name="api-tla-max-value"></a>
 
@@ -344,7 +344,7 @@ def example():
     value = tla.max_value(tl.int32)
 ```
 
-仓库测试：[tla_ut/scalar/max_value.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/scalar/max_value.py#L54)。
+仓库测试：[tla_ut/scalar/max_value.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/scalar/max_value.py#L54)。
 
 <a name="api-tla-minimum"></a>
 
@@ -370,4 +370,4 @@ def example(x, y):
     value = tla.minimum(x, y)
 ```
 
-仓库测试：[tla_ut/scalar/minimum.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/scalar/minimum.py#L43)。
+仓库测试：[tla_ut/scalar/minimum.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/scalar/minimum.py#L43)。

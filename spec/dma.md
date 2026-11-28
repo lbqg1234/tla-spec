@@ -38,7 +38,7 @@ def example(src, dst):
         tla.load_gm_to_l1(src, dst)
 ```
 
-仓库测试：[tla_ut/dma/nd2nz.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/dma/nd2nz.py#L22)。
+仓库测试：[tla_ut/dma/nd2nz.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/dma/nd2nz.py#L22)。
 
 <a name="api-tla-load-gm-to-ub"></a>
 
@@ -84,7 +84,7 @@ def example(x):
         tla.load_gm_to_ub(tla.view(x, (2, 30)), dst, p)
 ```
 
-仓库测试：`tla_ut/dma/load_store.py`。
+仓库测试：[tla_ut/dma/load_store.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/dma/load_store.py#L30)。
 
 <a name="api-tla-store-ub-to-gm"></a>
 
@@ -119,7 +119,7 @@ def example(x, y):
         tla.store_ub_to_gm(tile, tla.view(y, (2, 32)))
 ```
 
-仓库测试：`tla_ut/dma/load_store.py`。
+仓库测试：[tla_ut/dma/load_store.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/dma/load_store.py#L31)。
 
 <a name="api-tla-copy-l1-to-l0"></a>
 
@@ -144,7 +144,7 @@ def example(x, y):
 - 地址：源、目的完整访问跨度均不得越界，不提供非完整分块的自动填充。
 - 同步：调用方须保证装载、搬运、矩阵运算以及缓冲区复用之间的依赖。
 
-仓库测试：[tla_ut/dma/copy.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/unittest/tla_ut/dma/copy.py#L42)。
+仓库测试：[tla_ut/dma/copy.py](https://github.com/triton-lang/triton-ascend/blob/main/third_party/ascend/unittest/tla_ut/dma/copy.py#L42)。
 
 <a name="api-tla-make-partition-view"></a>
 
